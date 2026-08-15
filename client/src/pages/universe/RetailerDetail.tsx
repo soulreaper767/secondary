@@ -8,6 +8,23 @@ import { Retailer, Visit, Order, Product } from '../../types';
 import { variantName, variantShortName } from '../../lib/product';
 import { ClipboardCheck, MapPin } from 'lucide-react';
 
+const CHILLER_LABEL: Record<string, string> = {
+  NONE: 'No chiller',
+  COMPANY: 'Company chiller',
+  COMPETITOR: 'Competitor chiller',
+  SHOP_OWNED: "Shop's own chiller",
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  GENERAL_STORE: 'General Store',
+  PAN_SHOP: 'Pan Shop',
+  KIRYANA_STORE: 'Kiryana Store',
+  LARGE_STORE: 'Large Store',
+  WHOLESALE: 'Wholesale',
+  HORECA: 'HoReCa',
+  MODERN_TRADE: 'Modern Trade',
+};
+
 interface StockTake {
   id: number;
   takenAt: string;
@@ -125,8 +142,8 @@ export default function RetailerDetail() {
               {retailer.ownerName || '—'}
             </div>
             <div>
-              <span className="text-[var(--muted)]">Category: </span>
-              {retailer.category.replace('_', ' ')}
+              <span className="text-[var(--muted)]">Shop Type: </span>
+              {CATEGORY_LABEL[retailer.category] || retailer.category}
             </div>
             <div>
               <span className="text-[var(--muted)]">Territory: </span>
@@ -144,6 +161,15 @@ export default function RetailerDetail() {
               <span className="text-[var(--muted)]">Last order: </span>
               {retailer.lastOrderDate ? new Date(retailer.lastOrderDate).toLocaleDateString() : '—'}
             </div>
+            <div>
+              <span className="text-[var(--muted)]">Chiller: </span>
+              {CHILLER_LABEL[retailer.chillerType] || retailer.chillerType}
+            </div>
+            {retailer.competitorExclusive && (
+              <div>
+                <span className="rounded-full bg-[var(--status-critical)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--status-critical)]">Competitor-exclusive outlet</span>
+              </div>
+            )}
           </div>
           {retailer.address && <p className="mt-2 text-sm text-[var(--text-secondary)]">{retailer.address}</p>}
         </div>

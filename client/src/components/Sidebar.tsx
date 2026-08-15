@@ -25,6 +25,9 @@ import {
   Package,
   Trophy,
   Target,
+  Layers,
+  MapPinned,
+  Gauge,
   LucideIcon,
 } from 'lucide-react';
 import { NAV_SECTIONS } from '../nav';
@@ -56,6 +59,9 @@ const ICONS: Record<string, LucideIcon> = {
   Package,
   Trophy,
   Target,
+  Layers,
+  MapPinned,
+  Gauge,
 };
 
 // Each nav section gets a distinct accent from the validated categorical palette.

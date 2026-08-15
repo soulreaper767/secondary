@@ -67,6 +67,8 @@ router.get(
     });
     const distributorCount = await prisma.distributor.count({ where: { territoryNodeId: { in: nodeIds } } });
     const userCount = await prisma.user.count({ where: { territoryNodeId: { in: nodeIds } } });
+    const potentialAgg = await prisma.territoryNode.aggregate({ where: { id: { in: nodeIds } }, _sum: { marketPotential: true } });
+    const marketPotential = potentialAgg._sum.marketPotential || 0;
 
     res.json({
       universe,
@@ -75,6 +77,9 @@ router.get(
       distributorCount,
       userCount,
       nodeCount: nodeIds.length,
+      marketPotential,
+      penetrationPct: marketPotential > 0 ? (universe.total / marketPotential) * 100 : null,
+      untappedOpportunity: Math.max(0, marketPotential - universe.total),
     });
   })
 );
@@ -85,6 +90,7 @@ const nodeSchema = z.object({
   level: z.enum(['NATIONAL', 'REGION', 'SUB_REGION', 'AREA', 'TERRITORY']),
   parentId: z.number().nullable().optional(),
   managerUserId: z.number().nullable().optional(),
+  marketPotential: z.number().min(0).optional(),
 });
 
 router.post(
@@ -105,6 +111,7 @@ router.post(
         level: body.level,
         parentId: body.parentId ?? null,
         managerUserId: body.managerUserId ?? null,
+        marketPotential: body.marketPotential ?? 0,
         path: '-temp-',
       },
     });
@@ -121,7 +128,7 @@ router.put(
     const body = nodeSchema.partial().parse(req.body);
     const updated = await prisma.territoryNode.update({
       where: { id: Number(req.params.id) },
-      data: { name: body.name, code: body.code, managerUserId: body.managerUserId },
+      data: { name: body.name, code: body.code, managerUserId: body.managerUserId, marketPotential: body.marketPotential },
     });
     res.json(updated);
   })

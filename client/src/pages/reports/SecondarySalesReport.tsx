@@ -5,6 +5,7 @@ import { ChartCard } from '../../components/ChartCard';
 import { DataTable } from '../../components/DataTable';
 import { KpiCard } from '../../components/KpiCard';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { ExportButtons } from '../../components/ExportButtons';
 import { CATEGORICAL, CHART_INK } from '../../lib/chartColors';
 import { BarChart3, RefreshCw, Sparkles, Receipt } from 'lucide-react';
 
@@ -26,18 +27,6 @@ function isoDaysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
-}
-
-function downloadCsv(rows: ReportRow[], groupBy: string) {
-  const header = [groupBy, 'orders', 'qty', 'value'];
-  const csv = [header.join(','), ...rows.map((r) => [`"${r.label}"`, r.orders, r.qty, r.value].join(','))].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `secondary-sales-${groupBy}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export default function SecondarySalesReport() {
@@ -85,9 +74,7 @@ export default function SecondarySalesReport() {
             <option value="territory">By Territory</option>
             <option value="obUser">By Order Booker</option>
           </select>
-          <button onClick={() => downloadCsv(rows, groupBy)} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--page)]">
-            Export CSV
-          </button>
+          <ExportButtons path="/reports/secondary-sales" params={{ groupBy, from, to }} />
           <PrintButton />
         </div>
       </div>

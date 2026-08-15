@@ -13,12 +13,14 @@ router.get(
   '/',
   scopeToTerritory,
   asyncHandler(async (req, res) => {
-    const { status, category, territoryNodeId, search, page = '1', pageSize = '50' } = req.query;
+    const { status, category, chillerType, competitorExclusive, territoryNodeId, search, page = '1', pageSize = '50' } = req.query;
     const where: any = {};
     if (req.scopedNodeIds) where.territoryNodeId = { in: req.scopedNodeIds };
     if (territoryNodeId) where.territoryNodeId = Number(territoryNodeId);
     if (status) where.status = String(status);
     if (category) where.category = String(category);
+    if (chillerType) where.chillerType = String(chillerType);
+    if (competitorExclusive !== undefined) where.competitorExclusive = competitorExclusive === 'true';
     if (search) where.name = { contains: String(search) };
 
     const take = Math.min(Number(pageSize), 200);
@@ -44,13 +46,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const where: any = {};
     if (req.scopedNodeIds) where.territoryNodeId = { in: req.scopedNodeIds };
-    const [untapped, covered, productive, nonProductive] = await Promise.all([
+    // Only 3 real states now — a visited shop is always Productive or
+    // Non-Productive, never a separate "Covered" bucket (see schema comment).
+    const [untapped, productive, nonProductive] = await Promise.all([
       prisma.retailer.findMany({ where: { ...where, status: 'UNTAPPED' }, orderBy: { createdAt: 'desc' }, take: 100 }),
-      prisma.retailer.findMany({ where: { ...where, status: 'COVERED' }, orderBy: { createdAt: 'desc' }, take: 100 }),
       prisma.retailer.findMany({ where: { ...where, status: 'PRODUCTIVE' }, orderBy: { createdAt: 'desc' }, take: 100 }),
       prisma.retailer.findMany({ where: { ...where, status: 'NON_PRODUCTIVE' }, orderBy: { createdAt: 'desc' }, take: 100 }),
     ]);
-    res.json({ UNTAPPED: untapped, COVERED: covered, PRODUCTIVE: productive, NON_PRODUCTIVE: nonProductive });
+    res.json({ UNTAPPED: untapped, PRODUCTIVE: productive, NON_PRODUCTIVE: nonProductive });
   })
 );
 
@@ -74,7 +77,9 @@ router.get(
 const retailerSchema = z.object({
   name: z.string().min(1),
   ownerName: z.string().optional(),
-  category: z.enum(['GENERAL_TRADE', 'WHOLESALE', 'HORECA', 'MODERN_TRADE', 'KIRANA']),
+  category: z.enum(['GENERAL_STORE', 'PAN_SHOP', 'KIRYANA_STORE', 'LARGE_STORE', 'WHOLESALE', 'HORECA', 'MODERN_TRADE']),
+  chillerType: z.enum(['NONE', 'COMPANY', 'COMPETITOR', 'SHOP_OWNED']).optional(),
+  competitorExclusive: z.coerce.boolean().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   territoryNodeId: z.coerce.number(),

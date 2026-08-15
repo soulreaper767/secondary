@@ -78,6 +78,13 @@ model TerritoryNode {
   parent   TerritoryNode? @relation("NodeChildren", fields: [parentId], references: [id])
   children TerritoryNode[] @relation("NodeChildren")
 
+  // Estimated true addressable outlet count for this node alone (set at
+  // Territory level in practice). Summed across a subtree and compared
+  // against the recorded universe to show real expansion opportunity —
+  // a territory can look "fully covered" on its own funnel while still
+  // being a fraction of the actual market.
+  marketPotential Int @default(0)
+
   managerUserId Int?
   managerUser   User? @relation("NodeManager", fields: [managerUserId], references: [id])
 
@@ -100,14 +107,24 @@ model Retailer {
   id           Int      @id @default(autoincrement())
   name         String
   ownerName    String?
-  category     String // GENERAL_TRADE | WHOLESALE | HORECA | MODERN_TRADE | KIRANA
+  category     String // GENERAL_STORE | PAN_SHOP | KIRYANA_STORE | LARGE_STORE | WHOLESALE | HORECA | MODERN_TRADE
   phone        String?
   address      String?
   imageUrl     String?
   latitude     Float?
   longitude    Float?
 
-  status       String   @default("UNTAPPED") // UNTAPPED | COVERED | PRODUCTIVE | NON_PRODUCTIVE
+  // Cold-chain / merchandising presence — chiller placement is a core
+  // beverage-trade KPI, and exclusivity flags competitive risk.
+  chillerType         String  @default("NONE") // NONE | COMPANY | COMPETITOR | SHOP_OWNED
+  competitorExclusive Boolean @default(false) // shop stocks a competitor brand exclusively (e.g. Pepsi-only)
+
+  // Once visited, a shop is ALWAYS exactly one of PRODUCTIVE or
+  // NON_PRODUCTIVE — there is no lingering "visited, no verdict yet" state.
+  // "Covered" is therefore a derived count (Productive + Non-Productive),
+  // never a stored value, so Universe = Untapped + Covered and
+  // Covered = Productive + Non-Productive hold by construction, always.
+  status       String   @default("UNTAPPED") // UNTAPPED | PRODUCTIVE | NON_PRODUCTIVE
   lastVisitDate DateTime?
   lastOrderDate DateTime?
 

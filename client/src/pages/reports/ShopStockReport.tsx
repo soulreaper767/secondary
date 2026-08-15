@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { ShopStockRow } from '../../types';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { ExportButtons } from '../../components/ExportButtons';
 
 export default function ShopStockReport() {
   const [rows, setRows] = useState<ShopStockRow[]>([]);
@@ -30,6 +31,7 @@ export default function ShopStockReport() {
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm"
           />
+          <ExportButtons path="/reports/shop-stock" />
           <PrintButton />
         </div>
       </div>

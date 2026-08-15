@@ -25,6 +25,9 @@ import StockBalance from './pages/distribution/StockBalance';
 
 import SecondarySalesReport from './pages/reports/SecondarySalesReport';
 import UniverseFunnelReport from './pages/reports/UniverseFunnelReport';
+import UniverseSegmentationReport from './pages/reports/UniverseSegmentationReport';
+import CoverageOpportunityReport from './pages/reports/CoverageOpportunityReport';
+import ObEfficiencyReport from './pages/reports/ObEfficiencyReport';
 import IncentivesReport from './pages/reports/IncentivesReport';
 import ShopStockReport from './pages/reports/ShopStockReport';
 
@@ -65,6 +68,9 @@ export default function App() {
 
           <Route path="/reports/secondary-sales" element={<SecondarySalesReport />} />
           <Route path="/reports/universe-funnel" element={<UniverseFunnelReport />} />
+          <Route path="/reports/universe-segmentation" element={<UniverseSegmentationReport />} />
+          <Route path="/reports/coverage-opportunity" element={<CoverageOpportunityReport />} />
+          <Route path="/reports/ob-efficiency" element={<ObEfficiencyReport />} />
           <Route path="/reports/incentives" element={<IncentivesReport />} />
           <Route path="/reports/shop-stock" element={<ShopStockReport />} />
         </Route>

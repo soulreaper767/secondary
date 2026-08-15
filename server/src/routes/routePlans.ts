@@ -75,11 +75,13 @@ router.post(
       data: { checkInTime: new Date(), visitStatus: 'VISITED' },
     });
     const retailer = await prisma.retailer.findUnique({ where: { id: visit.retailerId } });
-    if (retailer && retailer.status === 'UNTAPPED') {
-      await prisma.retailer.update({ where: { id: retailer.id }, data: { status: 'COVERED' } });
-    }
     if (retailer) {
-      await prisma.retailer.update({ where: { id: retailer.id }, data: { lastVisitDate: new Date() } });
+      // A first-time visit gives the shop an immediate productivity verdict —
+      // no order at this visit means Non-Productive, not a lingering "Covered"
+      // limbo. An order (via /orders) will promote it to Productive right after.
+      const data: any = { lastVisitDate: new Date() };
+      if (retailer.status === 'UNTAPPED') data.status = 'NON_PRODUCTIVE';
+      await prisma.retailer.update({ where: { id: retailer.id }, data });
     }
     res.json(visit);
   })
@@ -152,7 +154,7 @@ router.post(
 
     const retailer = visit.retailer;
     const data: any = { lastVisitDate: now };
-    if (retailer.status === 'UNTAPPED') data.status = 'COVERED';
+    if (retailer.status === 'UNTAPPED') data.status = 'NON_PRODUCTIVE';
     await prisma.retailer.update({ where: { id: retailer.id }, data });
 
     res.status(201).json({ ...visit, addedToPjp: !existingEntry });

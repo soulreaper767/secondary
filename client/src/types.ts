@@ -13,6 +13,7 @@ export interface TerritoryNode {
   level: 'NATIONAL' | 'REGION' | 'SUB_REGION' | 'AREA' | 'TERRITORY';
   parentId: number | null;
   path: string;
+  marketPotential: number;
   managerUserId: number | null;
   managerUser?: { id: number; name: string } | null;
   children?: TerritoryNode[];
@@ -33,14 +34,19 @@ export interface User {
   manager?: { id: number; name: string } | null;
 }
 
-export type UniverseStatus = 'UNTAPPED' | 'COVERED' | 'PRODUCTIVE' | 'NON_PRODUCTIVE';
-export type RetailerCategory = 'GENERAL_TRADE' | 'WHOLESALE' | 'HORECA' | 'MODERN_TRADE' | 'KIRANA';
+// A retailer is always exactly one of these — "Covered" is a derived total
+// (Productive + Non-Productive) shown in reports, never a stored value.
+export type UniverseStatus = 'UNTAPPED' | 'PRODUCTIVE' | 'NON_PRODUCTIVE';
+export type RetailerCategory = 'GENERAL_STORE' | 'PAN_SHOP' | 'KIRYANA_STORE' | 'LARGE_STORE' | 'WHOLESALE' | 'HORECA' | 'MODERN_TRADE';
+export type ChillerType = 'NONE' | 'COMPANY' | 'COMPETITOR' | 'SHOP_OWNED';
 
 export interface Retailer {
   id: number;
   name: string;
   ownerName?: string | null;
   category: RetailerCategory;
+  chillerType: ChillerType;
+  competitorExclusive: boolean;
   phone?: string | null;
   address?: string | null;
   imageUrl?: string | null;
@@ -219,4 +225,41 @@ export interface ShopStockRow {
   takenAt: string;
   items: { productId: number; name: string; skuCode: string; packSize: string; qty: number }[];
   totalUnits: number;
+}
+
+export interface SegmentationRow {
+  key: string;
+  count: number;
+}
+
+export interface UniverseSegmentation {
+  total: number;
+  byCategory: SegmentationRow[];
+  byChiller: SegmentationRow[];
+  competitorExclusive: number;
+}
+
+export interface CoverageOpportunityRow {
+  territoryId: number;
+  territoryName: string;
+  marketPotential: number;
+  recordedUniverse: number;
+  untappedInSystem: number;
+  productive: number;
+  penetrationPct: number | null;
+  expansionGap: number;
+}
+
+export interface ObEfficiencyRow {
+  obId: number;
+  obName: string;
+  territory?: string;
+  routeSize: number;
+  plannedVisits: number;
+  actualVisits: number;
+  compliancePct: number;
+  avgVisitsPerDay: number;
+  ordersBooked: number;
+  untappedInTerritory: number;
+  universeInTerritory: number;
 }

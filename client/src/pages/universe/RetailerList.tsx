@@ -5,23 +5,43 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Retailer } from '../../types';
 
+const CATEGORY_LABEL: Record<string, string> = {
+  GENERAL_STORE: 'General Store',
+  PAN_SHOP: 'Pan Shop',
+  KIRYANA_STORE: 'Kiryana Store',
+  LARGE_STORE: 'Large Store',
+  WHOLESALE: 'Wholesale',
+  HORECA: 'HoReCa',
+  MODERN_TRADE: 'Modern Trade',
+};
+
+const CHILLER_LABEL: Record<string, string> = {
+  NONE: 'No Chiller',
+  COMPANY: 'Company Chiller',
+  COMPETITOR: 'Competitor Chiller',
+  SHOP_OWNED: "Shop's Own Chiller",
+};
+
 export default function RetailerList() {
   const [items, setItems] = useState<Retailer[]>([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
+  const [chillerType, setChillerType] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
   useEffect(() => {
     api
-      .get('/retailers', { params: { status: status || undefined, category: category || undefined, search: search || undefined, page, pageSize } })
+      .get('/retailers', {
+        params: { status: status || undefined, category: category || undefined, chillerType: chillerType || undefined, search: search || undefined, page, pageSize },
+      })
       .then((r) => {
         setItems(r.data.items);
         setTotal(r.data.total);
       });
-  }, [status, category, search, page]);
+  }, [status, category, chillerType, search, page]);
 
   return (
     <div className="space-y-4">
@@ -52,7 +72,6 @@ export default function RetailerList() {
         >
           <option value="">All statuses</option>
           <option value="UNTAPPED">Untapped</option>
-          <option value="COVERED">Covered</option>
           <option value="PRODUCTIVE">Productive</option>
           <option value="NON_PRODUCTIVE">Non-Productive</option>
         </select>
@@ -64,12 +83,27 @@ export default function RetailerList() {
           }}
           className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm"
         >
-          <option value="">All categories</option>
-          <option value="GENERAL_TRADE">General Trade</option>
-          <option value="WHOLESALE">Wholesale</option>
-          <option value="HORECA">HoReCa</option>
-          <option value="MODERN_TRADE">Modern Trade</option>
-          <option value="KIRANA">Kirana</option>
+          <option value="">All shop types</option>
+          {Object.entries(CATEGORY_LABEL).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={chillerType}
+          onChange={(e) => {
+            setPage(1);
+            setChillerType(e.target.value);
+          }}
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm"
+        >
+          <option value="">All chiller status</option>
+          {Object.entries(CHILLER_LABEL).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -79,9 +113,18 @@ export default function RetailerList() {
           rows={items}
           columns={[
             { header: 'Name', cell: (r) => <Link to={`/universe/${r.id}`} className="font-medium text-[var(--series-1)] hover:underline">{r.name}</Link> },
-            { header: 'Category', cell: (r) => r.category.replace('_', ' ') },
+            { header: 'Shop Type', cell: (r) => CATEGORY_LABEL[r.category] || r.category },
             { header: 'Territory', cell: (r) => r.territoryNode?.name },
             { header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },
+            {
+              header: 'Chiller',
+              cell: (r) => (
+                <span className="whitespace-nowrap text-xs">
+                  {CHILLER_LABEL[r.chillerType] || r.chillerType}
+                  {r.competitorExclusive && <span className="ml-1 rounded-full bg-[var(--status-critical)]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-critical)]">Competitor-exclusive</span>}
+                </span>
+              ),
+            },
             { header: 'Added By', cell: (r) => r.addedByUser?.name },
             { header: 'Last Order', cell: (r) => (r.lastOrderDate ? new Date(r.lastOrderDate).toLocaleDateString() : '—') },
           ]}

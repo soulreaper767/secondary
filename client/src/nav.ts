@@ -60,6 +60,9 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Secondary Sales', to: '/reports/secondary-sales', roles: ['ADMIN', ...MANAGEMENT], icon: 'BarChart3' },
       { label: 'Universe Funnel', to: '/reports/universe-funnel', roles: ['ADMIN', ...MANAGEMENT], icon: 'PieChart' },
+      { label: 'Universe Segmentation', to: '/reports/universe-segmentation', roles: ['ADMIN', ...MANAGEMENT], icon: 'Layers' },
+      { label: 'Coverage Opportunity', to: '/reports/coverage-opportunity', roles: ['ADMIN', ...MANAGEMENT], icon: 'MapPinned' },
+      { label: 'OB Efficiency', to: '/reports/ob-efficiency', roles: ['ADMIN', ...MANAGEMENT], icon: 'Gauge' },
       { label: 'Incentives', to: '/reports/incentives', roles: ['ADMIN', ...MANAGEMENT, 'OB'], icon: 'Award' },
     ],
   },

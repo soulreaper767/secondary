@@ -77,6 +77,13 @@ async function main() {
   for (const area of areas) {
     for (const t of [1, 2]) {
       const territory = await createNode(`${area.name} Territory ${t}`, `${area.code}-T${t}`, 'TERRITORY', area);
+      // Estimated true addressable outlet count, set independently of how
+      // many shops have actually been captured — a realistic market-survey
+      // number, always higher than what's been tapped so there's a real
+      // expansion gap for the coverage-opportunity report to surface.
+      const marketPotential = randInt(45, 140);
+      await prisma.territoryNode.update({ where: { id: territory.id }, data: { marketPotential } });
+      territory.marketPotential = marketPotential;
       territories.push(territory);
     }
   }
@@ -303,14 +310,28 @@ async function main() {
   }
 
   console.log('Creating retail universe (this takes a bit)...');
-  const categories = ['GENERAL_TRADE', 'GENERAL_TRADE', 'KIRANA', 'KIRANA', 'WHOLESALE', 'HORECA', 'MODERN_TRADE'] as const;
+  // Weighted toward small-format trade, which dominates a real FMCG universe.
+  const categories = [
+    'GENERAL_STORE', 'GENERAL_STORE', 'GENERAL_STORE',
+    'KIRYANA_STORE', 'KIRYANA_STORE',
+    'PAN_SHOP', 'PAN_SHOP',
+    'LARGE_STORE',
+    'WHOLESALE',
+    'HORECA',
+    'MODERN_TRADE',
+  ] as const;
+  // Most shops have no dedicated chiller; company placement is the next
+  // most common, then competitor presence, then a shop's own unbranded unit.
+  const chillerTypes = ['NONE', 'NONE', 'NONE', 'NONE', 'COMPANY', 'COMPANY', 'COMPETITOR', 'SHOP_OWNED'] as const;
   const shopAdjectives = ['New', 'City', 'Metro', 'Green', 'Golden', 'Prime', 'Star', 'Royal', 'Sunrise', 'Blue Sky', 'Al-Madina', 'National'];
   const shopNouns = ['Store', 'Mart', 'Traders', 'Enterprises', 'General Store', 'Super Store', 'Corner Shop', 'Cash & Carry'];
   let retailerSeq = 1;
   const retailersByTerritoryId = new Map<number, any[]>();
   for (const territory of territories) {
     const ob = obByTerritoryId.get(territory.id);
-    const count = randInt(16, 22);
+    // Keep the recorded universe below marketPotential so there's always a
+    // real, visible expansion gap per territory.
+    const count = randInt(16, Math.min(28, territory.marketPotential - 5));
     const list: any[] = [];
     for (let i = 0; i < count; i++) {
       const retailer = await prisma.retailer.create({
@@ -318,6 +339,8 @@ async function main() {
           name: `${pick(shopAdjectives)} ${pick(shopNouns)} #${retailerSeq++}`,
           ownerName: personName(),
           category: pick(categories) as any,
+          chillerType: pick(chillerTypes) as any,
+          competitorExclusive: Math.random() < 0.07,
           phone: `03${randInt(10, 49)}-${randInt(1000000, 9999999)}`,
           address: `Shop ${randInt(1, 200)}, ${territory.name}`,
           territoryNodeId: territory.id,
@@ -394,10 +417,12 @@ async function main() {
 
         const retailer = await prisma.retailer.findUnique({ where: { id: entry.retailerId } });
         const madeProductive = !!retailer && retailer.status !== 'PRODUCTIVE';
-        if (retailer && retailer.status === 'UNTAPPED') {
-          await prisma.retailer.update({ where: { id: retailer.id }, data: { status: 'COVERED' } });
-        }
-        await prisma.retailer.update({ where: { id: entry.retailerId }, data: { lastVisitDate: date } });
+        // First visit gives an immediate verdict — Non-Productive unless this
+        // very visit also results in an order (handled below, which overwrites
+        // to Productive). No lingering "just visited" limbo state.
+        const visitData: any = { lastVisitDate: date };
+        if (retailer && retailer.status === 'UNTAPPED') visitData.status = 'NON_PRODUCTIVE';
+        await prisma.retailer.update({ where: { id: entry.retailerId }, data: visitData });
 
         if (willOrder && distributor) {
           const lineItems = sample(products, randInt(1, 4)).map((p) => ({

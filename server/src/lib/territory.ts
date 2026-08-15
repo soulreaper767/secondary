@@ -87,9 +87,12 @@ export async function getUniverseSummary(nodeIds: number[] | null): Promise<Univ
     const count = row._count._all;
     summary.total += count;
     if (row.status === 'UNTAPPED') summary.untapped = count;
-    if (row.status === 'COVERED') summary.covered = count;
     if (row.status === 'PRODUCTIVE') summary.productive = count;
     if (row.status === 'NON_PRODUCTIVE') summary.nonProductive = count;
   }
+  // Covered is derived, never stored — this is what guarantees
+  // Universe = Untapped + Covered and Covered = Productive + Non-Productive
+  // hold exactly, at all times, instead of merely "usually".
+  summary.covered = summary.productive + summary.nonProductive;
   return summary;
 }

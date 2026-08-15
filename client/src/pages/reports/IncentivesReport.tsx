@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { KpiCard } from '../../components/KpiCard';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { ExportButtons } from '../../components/ExportButtons';
 import { Target, TrendingUp, Trophy, Layers } from 'lucide-react';
 
 interface Earning {
@@ -46,7 +47,10 @@ export default function IncentivesReport() {
           <h1 className="text-lg font-semibold">Incentive Report</h1>
           <p className="text-sm text-[var(--text-secondary)]">Target achievement and every stacked incentive scheme's payout, by period.</p>
         </div>
-        <PrintButton />
+        <div className="no-print flex items-center gap-2">
+          <ExportButtons path="/incentives/earnings" />
+          <PrintButton />
+        </div>
       </div>
 
       {target && (
