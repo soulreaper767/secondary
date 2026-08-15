@@ -44,9 +44,21 @@ router.get(
   asyncHandler(async (req, res) => {
     const { from, to } = dateRange(req);
     const groupBy = String(req.query.groupBy || 'distributor');
+    const { distributorId, obUserId, territoryNodeId, retailerId, productId } = req.query;
 
     const where: any = { orderDate: { gte: from, lte: to }, status: { not: 'CANCELLED' } };
     if (req.scopedNodeIds) where.retailer = { territoryNodeId: { in: req.scopedNodeIds } };
+    if (distributorId) where.distributorId = Number(distributorId);
+    if (obUserId) where.obUserId = Number(obUserId);
+    if (retailerId) where.retailerId = Number(retailerId);
+    if (territoryNodeId) {
+      const requested = Number(territoryNodeId);
+      // Never let a caller-supplied territory filter widen past their scope.
+      if (!req.scopedNodeIds || req.scopedNodeIds.includes(requested)) {
+        where.retailer = { territoryNodeId: requested };
+      }
+    }
+    if (productId) where.items = { some: { productId: Number(productId) } };
 
     const orders = await prisma.order.findMany({
       where,

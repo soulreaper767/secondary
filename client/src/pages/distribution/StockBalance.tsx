@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { Distributor, Product } from '../../types';
 import { variantName } from '../../lib/product';
 
@@ -15,23 +16,28 @@ interface BalanceRow {
 export default function StockBalance() {
   const [rows, setRows] = useState<BalanceRow[]>([]);
   const [distributors, setDistributors] = useState<Distributor[]>([]);
-  const [distributorId, setDistributorId] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [distributorId, setDistributorId] = useState<string | number>('');
+  const [productId, setProductId] = useState<string | number>('');
 
   useEffect(() => {
     api.get('/distributors').then((r) => setDistributors(r.data));
+    api.get('/products', { params: { active: true } }).then((r) => setProducts(r.data));
   }, []);
 
   useEffect(() => {
-    api.get('/stock/balance', { params: distributorId ? { distributorId } : {} }).then((r) => setRows(r.data));
-  }, [distributorId]);
+    api.get('/stock/balance', { params: { distributorId: distributorId || undefined, productId: productId || undefined } }).then((r) => setRows(r.data));
+  }, [distributorId, productId]);
 
-  const selectedDistributor = distributors.find((d) => String(d.id) === distributorId);
+  const selectedDistributor = distributors.find((d) => String(d.id) === String(distributorId));
+  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
 
   return (
     <div className="print-area space-y-4">
       <PrintHeader
         documentTitle="Distributor Stock Balance Statement"
         party={selectedDistributor ? { label: 'Distributor', name: selectedDistributor.name, code: selectedDistributor.code, address: selectedDistributor.address, phone: selectedDistributor.phone } : null}
+        meta={[{ label: 'Total stock (filtered)', value: totalQty.toLocaleString() }]}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -39,14 +45,8 @@ export default function StockBalance() {
           <p className="text-sm text-[var(--text-secondary)]">Live inventory at each distributor, by SKU.</p>
         </div>
         <div className="no-print flex items-center gap-2">
-          <select value={distributorId} onChange={(e) => setDistributorId(e.target.value)} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm">
-            <option value="">All distributors</option>
-            {distributors.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect allLabel="All Distributors" value={distributorId} onChange={setDistributorId} options={distributors.map((d) => ({ value: d.id, label: d.name }))} placeholder="Search distributor…" />
+          <SearchableSelect allLabel="All SKUs" value={productId} onChange={setProductId} options={products.map((p) => ({ value: p.id, label: variantName(p), sublabel: p.skuCode }))} placeholder="Search SKU…" />
           <PrintButton />
         </div>
       </div>
@@ -66,6 +66,7 @@ export default function StockBalance() {
               ),
             },
           ]}
+          footer={['Total', '', '', totalQty.toLocaleString()]}
         />
       </div>
     </div>

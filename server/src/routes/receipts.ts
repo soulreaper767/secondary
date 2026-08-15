@@ -18,7 +18,7 @@ router.get(
     if (retailerId) where.retailerId = Number(retailerId);
     const take = Math.min(Number(pageSize), 200);
     const skip = (Number(page) - 1) * take;
-    const [items, total] = await Promise.all([
+    const [items, total, totalsAgg] = await Promise.all([
       prisma.receipt.findMany({
         where,
         include: { retailer: { select: { id: true, name: true } }, obUser: { select: { id: true, name: true } }, order: { select: { id: true, orderNumber: true, totalAmount: true } } },
@@ -27,8 +27,9 @@ router.get(
         skip,
       }),
       prisma.receipt.count({ where }),
+      prisma.receipt.aggregate({ where, _sum: { amount: true } }),
     ]);
-    res.json({ items, total, page: Number(page), pageSize: take });
+    res.json({ items, total, page: Number(page), pageSize: take, totalAmount: totalsAgg._sum.amount || 0 });
   })
 );
 

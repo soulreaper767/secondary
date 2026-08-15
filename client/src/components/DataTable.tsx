@@ -7,7 +7,20 @@ export interface Column<T> {
   className?: string;
 }
 
-export function DataTable<T>({ columns, rows, keyFn, emptyText = 'No data' }: { columns: Column<T>[]; rows: T[]; keyFn: (row: T) => string | number; emptyText?: string }) {
+export function DataTable<T>({
+  columns,
+  rows,
+  keyFn,
+  emptyText = 'No data',
+  footer,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  keyFn: (row: T) => string | number;
+  emptyText?: string;
+  /** One cell per column, rendered as a bold totals row pinned to the bottom — recompute from the currently filtered `rows` so it always matches what's on screen. */
+  footer?: ReactNode[];
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-max border-collapse text-sm">
@@ -43,6 +56,17 @@ export function DataTable<T>({ columns, rows, keyFn, emptyText = 'No data' }: { 
             </tr>
           ))}
         </tbody>
+        {footer && rows.length > 0 && (
+          <tfoot>
+            <tr className="border-t-2 border-[var(--text-primary)]/15 bg-[var(--page)] font-bold">
+              {columns.map((col, i) => (
+                <td key={i} className={`tabular whitespace-nowrap px-3 py-2.5 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}>
+                  {footer[i] ?? ''}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

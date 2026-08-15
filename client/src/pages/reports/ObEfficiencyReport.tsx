@@ -1,22 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { KpiCard } from '../../components/KpiCard';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { ExportButtons } from '../../components/ExportButtons';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { ObEfficiencyRow } from '../../types';
 import { Users, Route as RouteIcon, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export default function ObEfficiencyReport() {
   const [days, setDays] = useState(30);
-  const [rows, setRows] = useState<ObEfficiencyRow[]>([]);
+  const [allRows, setAllRows] = useState<ObEfficiencyRow[]>([]);
+  const [obId, setObId] = useState<string | number>('');
 
   useEffect(() => {
-    api.get('/reports/ob-efficiency', { params: { days } }).then((r) => setRows(r.data.rows));
+    api.get('/reports/ob-efficiency', { params: { days } }).then((r) => setAllRows(r.data.rows));
   }, [days]);
+
+  const rows = useMemo(() => (obId ? allRows.filter((r) => String(r.obId) === String(obId)) : allRows), [allRows, obId]);
 
   const avgCompliance = rows.length ? rows.reduce((s, r) => s + r.compliancePct, 0) / rows.length : 0;
   const totalRouteShops = rows.reduce((s, r) => s + r.routeSize, 0);
+  const totalPlanned = rows.reduce((s, r) => s + r.plannedVisits, 0);
+  const totalActual = rows.reduce((s, r) => s + r.actualVisits, 0);
+  const totalOrders = rows.reduce((s, r) => s + r.ordersBooked, 0);
   const totalUntapped = rows.reduce((s, r) => s + r.untappedInTerritory, 0);
   const overloaded = rows.filter((r) => r.routeSize > 0 && r.avgVisitsPerDay < r.routeSize / 6 / 2).length; // covering less than half their weekly route pace
 
@@ -37,6 +44,11 @@ export default function ObEfficiencyReport() {
           <ExportButtons path="/reports/ob-efficiency" params={{ days }} />
           <PrintButton />
         </div>
+      </div>
+
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Filter to one order booker:</span>
+        <SearchableSelect allLabel="All Order Bookers" value={obId} onChange={setObId} options={allRows.map((r) => ({ value: r.obId, label: r.obName, sublabel: r.territory }))} placeholder="Search order booker…" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -68,6 +80,17 @@ export default function ObEfficiencyReport() {
               cell: (r) => <span className={r.untappedInTerritory > 10 ? 'font-semibold text-[var(--status-warning)]' : ''}>{r.untappedInTerritory.toLocaleString()}</span>,
               align: 'right',
             },
+          ]}
+          footer={[
+            'Total',
+            '',
+            totalRouteShops.toLocaleString(),
+            totalPlanned.toLocaleString(),
+            totalActual.toLocaleString(),
+            totalPlanned ? `${((totalActual / totalPlanned) * 100).toFixed(0)}%` : '—',
+            '',
+            totalOrders.toLocaleString(),
+            totalUntapped.toLocaleString(),
           ]}
         />
       </div>

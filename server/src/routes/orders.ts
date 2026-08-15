@@ -12,18 +12,19 @@ router.get(
   '/',
   scopeToTerritory,
   asyncHandler(async (req, res) => {
-    const { distributorId, obUserId, from, to, page = '1', pageSize = '50' } = req.query;
+    const { distributorId, obUserId, retailerId, from, to, page = '1', pageSize = '50' } = req.query;
     const where: any = {};
     if (req.scopedNodeIds) where.retailer = { territoryNodeId: { in: req.scopedNodeIds } };
     if (distributorId) where.distributorId = Number(distributorId);
     if (obUserId) where.obUserId = Number(obUserId);
+    if (retailerId) where.retailerId = Number(retailerId);
     if (from || to) where.orderDate = {
       ...(from ? { gte: new Date(String(from)) } : {}),
       ...(to ? { lte: new Date(String(to)) } : {}),
     };
     const take = Math.min(Number(pageSize), 200);
     const skip = (Number(page) - 1) * take;
-    const [items, total] = await Promise.all([
+    const [items, total, totalsAgg] = await Promise.all([
       prisma.order.findMany({
         where,
         include: {
@@ -37,8 +38,9 @@ router.get(
         skip,
       }),
       prisma.order.count({ where }),
+      prisma.order.aggregate({ where, _sum: { totalAmount: true } }),
     ]);
-    res.json({ items, total, page: Number(page), pageSize: take });
+    res.json({ items, total, page: Number(page), pageSize: take, totalValue: totalsAgg._sum.totalAmount || 0 });
   })
 );
 

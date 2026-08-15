@@ -12,19 +12,25 @@ router.get(
   '/',
   scopeToTerritory,
   asyncHandler(async (req, res) => {
+    const { retailerId, distributorId } = req.query;
     const where: any = {};
     if (req.scopedNodeIds) where.retailer = { territoryNodeId: { in: req.scopedNodeIds } };
-    const returns = await prisma.return.findMany({
-      where,
-      include: {
-        retailer: { select: { id: true, name: true } },
-        distributor: { select: { id: true, name: true } },
-        obUser: { select: { id: true, name: true } },
-        items: { include: { product: { include: { family: true } } } },
-      },
-      orderBy: { returnDate: 'desc' },
-    });
-    res.json(returns);
+    if (retailerId) where.retailerId = Number(retailerId);
+    if (distributorId) where.distributorId = Number(distributorId);
+    const [returns, totalsAgg] = await Promise.all([
+      prisma.return.findMany({
+        where,
+        include: {
+          retailer: { select: { id: true, name: true } },
+          distributor: { select: { id: true, name: true } },
+          obUser: { select: { id: true, name: true } },
+          items: { include: { product: { include: { family: true } } } },
+        },
+        orderBy: { returnDate: 'desc' },
+      }),
+      prisma.return.aggregate({ where, _sum: { totalAmount: true } }),
+    ]);
+    res.json({ items: returns, totalAmount: totalsAgg._sum.totalAmount || 0 });
   })
 );
 

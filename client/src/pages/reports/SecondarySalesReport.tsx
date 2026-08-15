@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../../api/client';
 import { ChartCard } from '../../components/ChartCard';
@@ -6,7 +6,10 @@ import { DataTable } from '../../components/DataTable';
 import { KpiCard } from '../../components/KpiCard';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { ExportButtons } from '../../components/ExportButtons';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { CATEGORICAL, CHART_INK } from '../../lib/chartColors';
+import { variantName } from '../../lib/product';
+import { Distributor, Product, TerritoryNode, User } from '../../types';
 import { BarChart3, RefreshCw, Sparkles, Receipt } from 'lucide-react';
 
 interface ReportRow {
@@ -38,14 +41,47 @@ export default function SecondarySalesReport() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [newVsRepeat, setNewVsRepeat] = useState({ newValue: 0, repeatValue: 0, newOrders: 0, repeatOrders: 0 });
 
+  const [distributorId, setDistributorId] = useState<string | number>('');
+  const [productId, setProductId] = useState<string | number>('');
+  const [territoryNodeId, setTerritoryNodeId] = useState<string | number>('');
+  const [obUserId, setObUserId] = useState<string | number>('');
+
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [territories, setTerritories] = useState<TerritoryNode[]>([]);
+  const [obUsers, setObUsers] = useState<User[]>([]);
+
   useEffect(() => {
-    api.get('/reports/secondary-sales', { params: { groupBy, from, to } }).then((r) => {
+    api.get('/distributors').then((r) => setDistributors(r.data));
+    api.get('/products', { params: { active: true } }).then((r) => setProducts(r.data));
+    api.get('/territories').then((r) => setTerritories(r.data.filter((t: TerritoryNode) => t.level === 'TERRITORY')));
+    api.get('/users', { params: { roleCode: 'OB' } }).then((r) => setObUsers(r.data));
+  }, []);
+
+  const filterParams = useMemo(
+    () => ({
+      groupBy,
+      from,
+      to,
+      distributorId: distributorId || undefined,
+      productId: productId || undefined,
+      territoryNodeId: territoryNodeId || undefined,
+      obUserId: obUserId || undefined,
+    }),
+    [groupBy, from, to, distributorId, productId, territoryNodeId, obUserId]
+  );
+
+  useEffect(() => {
+    api.get('/reports/secondary-sales', { params: filterParams }).then((r) => {
       setRows(r.data.rows);
       setTotalValue(r.data.totalValue);
       setTotalOrders(r.data.totalOrders);
       setNewVsRepeat(r.data.newVsRepeat);
     });
-  }, [groupBy, from, to]);
+  }, [filterParams]);
+
+  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+  const activeFilterCount = [distributorId, productId, territoryNodeId, obUserId].filter(Boolean).length;
 
   return (
     <div className="print-area space-y-4">
@@ -63,6 +99,7 @@ export default function SecondarySalesReport() {
           <h1 className="text-lg font-semibold">Secondary Sales Report</h1>
           <p className="text-sm text-[var(--text-secondary)]">
             {totalOrders.toLocaleString()} orders · {fmtCurrency(totalValue)} total
+            {activeFilterCount > 0 && <span className="text-[var(--series-1)]"> · {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</span>}
           </p>
         </div>
         <div className="no-print flex flex-wrap items-center gap-2">
@@ -74,9 +111,41 @@ export default function SecondarySalesReport() {
             <option value="territory">By Territory</option>
             <option value="obUser">By Order Booker</option>
           </select>
-          <ExportButtons path="/reports/secondary-sales" params={{ groupBy, from, to }} />
+          <ExportButtons path="/reports/secondary-sales" params={filterParams} />
           <PrintButton />
         </div>
+      </div>
+
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Filter to one:</span>
+        <SearchableSelect
+          allLabel="All Distributors"
+          value={distributorId}
+          onChange={setDistributorId}
+          options={distributors.map((d) => ({ value: d.id, label: d.name }))}
+          placeholder="Search distributor…"
+        />
+        <SearchableSelect
+          allLabel="All SKUs"
+          value={productId}
+          onChange={setProductId}
+          options={products.map((p) => ({ value: p.id, label: variantName(p), sublabel: p.skuCode }))}
+          placeholder="Search SKU…"
+        />
+        <SearchableSelect
+          allLabel="All Territories"
+          value={territoryNodeId}
+          onChange={setTerritoryNodeId}
+          options={territories.map((t) => ({ value: t.id, label: t.name }))}
+          placeholder="Search territory…"
+        />
+        <SearchableSelect
+          allLabel="All Order Bookers"
+          value={obUserId}
+          onChange={setObUserId}
+          options={obUsers.map((u) => ({ value: u.id, label: u.name }))}
+          placeholder="Search order booker…"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -108,6 +177,7 @@ export default function SecondarySalesReport() {
             { header: 'Qty', cell: (r) => r.qty, align: 'right' },
             { header: 'Value', cell: (r) => `Rs ${r.value.toLocaleString()}`, align: 'right' },
           ]}
+          footer={['Total', totalOrders.toLocaleString(), totalQty.toLocaleString(), `Rs ${totalValue.toLocaleString()}`]}
         />
       </div>
     </div>

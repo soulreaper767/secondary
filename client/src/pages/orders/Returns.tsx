@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { ReturnDoc, Retailer, Distributor, Product } from '../../types';
 import { variantName } from '../../lib/product';
 
@@ -17,6 +18,7 @@ const REASONS = ['Damaged in transit', 'Near expiry', 'Wrong SKU delivered', 'Sh
 export default function Returns() {
   const { user } = useAuth();
   const [items, setItems] = useState<ReturnDoc[]>([]);
+  const [returnsTotal, setReturnsTotal] = useState(0);
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -28,12 +30,17 @@ export default function Returns() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const [filterRetailerId, setFilterRetailerId] = useState<string | number>('');
+  const [filterDistributorId, setFilterDistributorId] = useState<string | number>('');
+
   function load() {
-    api.get('/returns').then((r) => setItems(r.data));
+    api.get('/returns', { params: { retailerId: filterRetailerId || undefined, distributorId: filterDistributorId || undefined } }).then((r) => {
+      setItems(r.data.items);
+      setReturnsTotal(r.data.totalAmount);
+    });
   }
 
   useEffect(() => {
-    load();
     if (user?.territoryNodeId) api.get('/retailers', { params: { territoryNodeId: user.territoryNodeId, pageSize: 200 } }).then((r) => setRetailers(r.data.items));
     api.get('/distributors').then((r) => {
       setDistributors(r.data);
@@ -41,6 +48,11 @@ export default function Returns() {
     });
     api.get('/products', { params: { active: true } }).then((r) => setProducts(r.data));
   }, [user?.id]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRetailerId, filterDistributorId]);
 
   function updateLine(i: number, patch: Partial<LineItem>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -78,7 +90,7 @@ export default function Returns() {
 
   return (
     <div className="print-area space-y-4">
-      <PrintHeader documentTitle="Returns Register" meta={[{ label: 'Total returns', value: String(items.length) }]} />
+      <PrintHeader documentTitle="Returns Register" meta={[{ label: 'Total returns', value: String(items.length) }, { label: 'Total value', value: `Rs ${returnsTotal.toLocaleString()}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-semibold">Returns</h1>
@@ -156,7 +168,13 @@ export default function Returns() {
         </div>
       )}
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-2">
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Filter to one:</span>
+        <SearchableSelect allLabel="All Shops" value={filterRetailerId} onChange={setFilterRetailerId} options={retailers.map((r) => ({ value: r.id, label: r.name }))} placeholder="Search shop…" />
+        <SearchableSelect allLabel="All Distributors" value={filterDistributorId} onChange={setFilterDistributorId} options={distributors.map((d) => ({ value: d.id, label: d.name }))} placeholder="Search distributor…" />
+      </div>
+
+      <div className="print-card rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-2">
         <DataTable
           keyFn={(r) => r.id}
           rows={items}
@@ -168,6 +186,7 @@ export default function Returns() {
             { header: 'Reason', cell: (r) => r.reason || '—' },
             { header: 'Amount', cell: (r) => `Rs ${r.totalAmount.toLocaleString()}`, align: 'right' },
           ]}
+          footer={['Total', '', '', '', '', `Rs ${returnsTotal.toLocaleString()}`]}
         />
       </div>
     </div>

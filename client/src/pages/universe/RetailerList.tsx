@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
-import { Retailer } from '../../types';
+import { SearchableSelect } from '../../components/SearchableSelect';
+import { Retailer, TerritoryNode } from '../../types';
 
 const CATEGORY_LABEL: Record<string, string> = {
   GENERAL_STORE: 'General Store',
@@ -28,20 +29,26 @@ export default function RetailerList() {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
   const [chillerType, setChillerType] = useState('');
+  const [territoryNodeId, setTerritoryNodeId] = useState<string | number>('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [territories, setTerritories] = useState<TerritoryNode[]>([]);
   const pageSize = 20;
+
+  useEffect(() => {
+    api.get('/territories').then((r) => setTerritories(r.data.filter((t: TerritoryNode) => t.level === 'TERRITORY')));
+  }, []);
 
   useEffect(() => {
     api
       .get('/retailers', {
-        params: { status: status || undefined, category: category || undefined, chillerType: chillerType || undefined, search: search || undefined, page, pageSize },
+        params: { status: status || undefined, category: category || undefined, chillerType: chillerType || undefined, territoryNodeId: territoryNodeId || undefined, search: search || undefined, page, pageSize },
       })
       .then((r) => {
         setItems(r.data.items);
         setTotal(r.data.total);
       });
-  }, [status, category, chillerType, search, page]);
+  }, [status, category, chillerType, territoryNodeId, search, page]);
 
   return (
     <div className="space-y-4">
@@ -105,6 +112,16 @@ export default function RetailerList() {
             </option>
           ))}
         </select>
+        <SearchableSelect
+          allLabel="All Territories"
+          value={territoryNodeId}
+          onChange={(v) => {
+            setPage(1);
+            setTerritoryNodeId(v);
+          }}
+          options={territories.map((t) => ({ value: t.id, label: t.name }))}
+          placeholder="Search territory…"
+        />
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-2">

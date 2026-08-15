@@ -13,6 +13,7 @@ export default function ShopStockReport() {
   }, []);
 
   const filtered = rows.filter((r) => r.retailerName.toLowerCase().includes(search.toLowerCase()));
+  const totalUnits = filtered.reduce((s, r) => s + r.totalUnits, 0);
 
   return (
     <div className="print-area space-y-4">
@@ -68,6 +69,15 @@ export default function ShopStockReport() {
           </div>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <div className="print-card flex items-center justify-between rounded-xl border-2 border-[var(--text-primary)]/15 bg-[var(--page)] px-4 py-2.5 text-sm font-bold">
+          <span>
+            Total — {filtered.length} shop{filtered.length === 1 ? '' : 's'}
+          </span>
+          <span className="tabular">{totalUnits.toLocaleString()} units on shelf</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../../api/client';
 import { ChartCard } from '../../components/ChartCard';
@@ -6,19 +6,25 @@ import { KpiCard } from '../../components/KpiCard';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { ExportButtons } from '../../components/ExportButtons';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { CoverageOpportunityRow } from '../../types';
 import { CATEGORICAL, CHART_INK } from '../../lib/chartColors';
 import { Target, MapPinned, TrendingUp, Store } from 'lucide-react';
 
 export default function CoverageOpportunityReport() {
-  const [rows, setRows] = useState<CoverageOpportunityRow[]>([]);
+  const [allRows, setAllRows] = useState<CoverageOpportunityRow[]>([]);
+  const [territoryId, setTerritoryId] = useState<string | number>('');
 
   useEffect(() => {
-    api.get('/reports/coverage-opportunity').then((r) => setRows(r.data));
+    api.get('/reports/coverage-opportunity').then((r) => setAllRows(r.data));
   }, []);
+
+  const rows = useMemo(() => (territoryId ? allRows.filter((r) => String(r.territoryId) === String(territoryId)) : allRows), [allRows, territoryId]);
 
   const totalPotential = rows.reduce((s, r) => s + r.marketPotential, 0);
   const totalRecorded = rows.reduce((s, r) => s + r.recordedUniverse, 0);
+  const totalProductive = rows.reduce((s, r) => s + r.productive, 0);
+  const totalUntapped = rows.reduce((s, r) => s + r.untappedInSystem, 0);
   const totalGap = rows.reduce((s, r) => s + r.expansionGap, 0);
   const chartData = rows.slice(0, 10).map((r) => ({ label: r.territoryName.replace(/^.*Territory/, 'Territory'), gap: r.expansionGap }));
 
@@ -36,6 +42,11 @@ export default function CoverageOpportunityReport() {
           <ExportButtons path="/reports/coverage-opportunity" />
           <PrintButton />
         </div>
+      </div>
+
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Filter to one territory:</span>
+        <SearchableSelect allLabel="All Territories" value={territoryId} onChange={setTerritoryId} options={allRows.map((r) => ({ value: r.territoryId, label: r.territoryName }))} placeholder="Search territory…" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -74,6 +85,7 @@ export default function CoverageOpportunityReport() {
               align: 'right',
             },
           ]}
+          footer={['Total', totalPotential.toLocaleString(), totalRecorded.toLocaleString(), totalProductive.toLocaleString(), totalUntapped.toLocaleString(), '', totalGap.toLocaleString()]}
         />
       </div>
     </div>

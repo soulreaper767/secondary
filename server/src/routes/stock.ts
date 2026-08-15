@@ -12,10 +12,11 @@ router.get(
   '/balance',
   scopeToTerritoryWithAncestors,
   asyncHandler(async (req, res) => {
-    const { distributorId } = req.query;
+    const { distributorId, productId } = req.query;
     const where: any = {};
     if (distributorId) where.distributorId = Number(distributorId);
     else if (req.scopedNodeIds) where.distributor = { territoryNodeId: { in: req.scopedNodeIds } };
+    if (productId) where.productId = Number(productId);
     const balances = await prisma.distributorStockBalance.findMany({
       where,
       include: { distributor: { select: { id: true, name: true } }, product: { include: { family: true } } },

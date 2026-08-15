@@ -3,28 +3,38 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { Receipt, Retailer, OutstandingRow } from '../../types';
 
 export default function Receipts() {
   const { user } = useAuth();
   const [items, setItems] = useState<Receipt[]>([]);
+  const [receiptsTotal, setReceiptsTotal] = useState(0);
   const [outstanding, setOutstanding] = useState<OutstandingRow[]>([]);
   const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [filterRetailerId, setFilterRetailerId] = useState<string | number>('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ retailerId: '', amount: '', method: 'CASH' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   function load() {
-    api.get('/receipts').then((r) => setItems(r.data.items));
+    api.get('/receipts', { params: { retailerId: filterRetailerId || undefined } }).then((r) => {
+      setItems(r.data.items);
+      setReceiptsTotal(r.data.totalAmount);
+    });
     api.get('/receipts/outstanding').then((r) => setOutstanding(r.data));
   }
 
   useEffect(() => {
-    load();
     if (user?.territoryNodeId) api.get('/retailers', { params: { territoryNodeId: user.territoryNodeId, pageSize: 200 } }).then((r) => setRetailers(r.data.items));
     else api.get('/retailers', { params: { pageSize: 200 } }).then((r) => setRetailers(r.data.items));
   }, [user?.id]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRetailerId]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -43,10 +53,12 @@ export default function Receipts() {
   }
 
   const canCollect = user && ['OB'].includes(user.role.code);
+  const outstandingFiltered = filterRetailerId ? outstanding.filter((o) => String(o.id) === String(filterRetailerId)) : outstanding;
+  const outstandingTotal = outstandingFiltered.reduce((s, o) => s + o.outstanding, 0);
 
   return (
     <div className="print-area space-y-4">
-      <PrintHeader documentTitle="Receipts & Outstanding Balances" />
+      <PrintHeader documentTitle="Receipts & Outstanding Balances" meta={[{ label: 'Total collected (filtered)', value: `Rs ${receiptsTotal.toLocaleString()}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-semibold">Receipts</h1>
@@ -83,6 +95,11 @@ export default function Receipts() {
         </form>
       )}
 
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Filter to one shop:</span>
+        <SearchableSelect allLabel="All Shops" value={filterRetailerId} onChange={setFilterRetailerId} options={retailers.map((r) => ({ value: r.id, label: r.name }))} placeholder="Search shop…" />
+      </div>
+
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-2">
         <h3 className="px-2 py-1.5 text-sm font-semibold">Recent Receipts</h3>
         <DataTable
@@ -95,6 +112,7 @@ export default function Receipts() {
             { header: 'Method', cell: (r) => r.method },
             { header: 'Amount', cell: (r) => `Rs ${r.amount.toLocaleString()}`, align: 'right' },
           ]}
+          footer={['Total', '', '', '', `Rs ${receiptsTotal.toLocaleString()}`]}
         />
       </div>
 
@@ -102,7 +120,7 @@ export default function Receipts() {
         <h3 className="px-2 py-1.5 text-sm font-semibold">Outstanding Balances</h3>
         <DataTable
           keyFn={(r) => r.id}
-          rows={outstanding}
+          rows={outstandingFiltered}
           emptyText="No outstanding balances in scope."
           columns={[
             { header: 'Retailer', cell: (r) => r.name },
@@ -111,6 +129,7 @@ export default function Receipts() {
             { header: 'Collected', cell: (r) => `Rs ${r.collected.toLocaleString()}`, align: 'right' },
             { header: 'Outstanding', cell: (r) => <span className="font-semibold text-[var(--status-critical)]">Rs {r.outstanding.toLocaleString()}</span>, align: 'right' },
           ]}
+          footer={['Total', '', '', '', `Rs ${outstandingTotal.toLocaleString()}`]}
         />
       </div>
     </div>
