@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+npm-debug.log*
+
+# Prisma / SQLite
+server/prisma/*.db
+server/prisma/*.db-journal
+server/prisma/dev.db
+
+# Uploads (user content, not source)
+server/src/uploads/*
+!server/src/uploads/.gitkeep
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

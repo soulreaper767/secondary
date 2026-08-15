@@ -1,0 +1,518 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: SQLite has no native enum support in Prisma, so enum-like fields below
+// are plain String columns. Valid values are documented per field and enforced
+// at the API boundary with zod (see server/src/routes/*.ts).
+
+// ─────────────────────────────────────────────────────────────────────────
+// Org & access
+// ─────────────────────────────────────────────────────────────────────────
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique // ADMIN | CSO | NSM | RSM | ZSM | ASM | TSI | OB | DISTRIBUTOR
+  name        String
+  level       Int // 0 = admin/top ... higher number = lower in hierarchy
+  description String?
+  users       User[]
+  schemes     IncentiveScheme[]
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  name           String
+  email          String    @unique
+  passwordHash   String
+  employeeCode   String    @unique
+  phone          String?
+  status         String    @default("ACTIVE") // ACTIVE | INACTIVE
+  joinDate       DateTime  @default(now())
+
+  roleId         Int
+  role           Role      @relation(fields: [roleId], references: [id])
+
+  territoryNodeId Int?
+  territoryNode   TerritoryNode? @relation("UserTerritory", fields: [territoryNodeId], references: [id])
+
+  managerId      Int?
+  manager        User?     @relation("ManagerReports", fields: [managerId], references: [id])
+  reports        User[]    @relation("ManagerReports")
+
+  managedNodes    TerritoryNode[]  @relation("NodeManager")
+  retailersAdded  Retailer[]       @relation("RetailerAddedBy")
+  pjps            PJP[]
+  visits          Visit[]
+  stockTakes      StockTake[]
+  ordersBooked    Order[]          @relation("OrderBookedBy")
+  receiptsCollected Receipt[]
+  returnsHandled  Return[]
+  stockOrdersRequested StockOrder[]
+  targets         Target[]
+  incentiveEarnings IncentiveEarning[]
+  notifications   Notification[]
+  distributor     Distributor?     @relation("DistributorUser")
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Territory tree
+// ─────────────────────────────────────────────────────────────────────────
+
+model TerritoryNode {
+  id       Int     @id @default(autoincrement())
+  name     String
+  code     String  @unique
+  level    String // NATIONAL | REGION | SUB_REGION | AREA | TERRITORY
+  path     String // materialized path, e.g. "-1-4-12-", includes own id at the end
+
+  parentId Int?
+  parent   TerritoryNode? @relation("NodeChildren", fields: [parentId], references: [id])
+  children TerritoryNode[] @relation("NodeChildren")
+
+  managerUserId Int?
+  managerUser   User? @relation("NodeManager", fields: [managerUserId], references: [id])
+
+  users        User[]        @relation("UserTerritory")
+  retailers    Retailer[]
+  distributors Distributor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([path])
+  @@index([parentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Universe (retail outlets)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Retailer {
+  id           Int      @id @default(autoincrement())
+  name         String
+  ownerName    String?
+  category     String // GENERAL_TRADE | WHOLESALE | HORECA | MODERN_TRADE | KIRANA
+  phone        String?
+  address      String?
+  imageUrl     String?
+  latitude     Float?
+  longitude    Float?
+
+  status       String   @default("UNTAPPED") // UNTAPPED | COVERED | PRODUCTIVE | NON_PRODUCTIVE
+  lastVisitDate DateTime?
+  lastOrderDate DateTime?
+
+  territoryNodeId Int
+  territoryNode   TerritoryNode @relation(fields: [territoryNodeId], references: [id])
+
+  addedByUserId Int
+  addedByUser   User @relation("RetailerAddedBy", fields: [addedByUserId], references: [id])
+
+  pjpEntries PJPVisitPlan[]
+  visits     Visit[]
+  orders     Order[]
+  stockTakes StockTake[]
+  receipts   Receipt[]
+  returns    Return[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([territoryNodeId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PJP & route execution
+// ─────────────────────────────────────────────────────────────────────────
+
+model PJP {
+  id       Int    @id @default(autoincrement())
+  name     String
+  active   Boolean @default(true)
+
+  obUserId Int
+  obUser   User @relation(fields: [obUserId], references: [id])
+
+  entries PJPVisitPlan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PJPVisitPlan {
+  id            Int @id @default(autoincrement())
+  pjpId         Int
+  pjp           PJP @relation(fields: [pjpId], references: [id], onDelete: Cascade)
+  retailerId    Int
+  retailer      Retailer @relation(fields: [retailerId], references: [id])
+  dayOfWeek     Int // 0=Sunday ... 6=Saturday
+  sequenceOrder Int @default(0) // stop order within the day's route — foundation for future route optimization
+  autoAdded     Boolean @default(false) // true when this entry was seeded from an actual field visit, not planned by a manager
+
+  @@index([pjpId])
+  @@index([retailerId])
+}
+
+model Visit {
+  id           Int      @id @default(autoincrement())
+  obUserId     Int
+  obUser       User     @relation(fields: [obUserId], references: [id])
+  retailerId   Int
+  retailer     Retailer @relation(fields: [retailerId], references: [id])
+
+  plannedDate  DateTime
+  visitStatus  String   @default("PLANNED") // PLANNED | VISITED | SKIPPED
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  outcome      String? // ORDER_TAKEN | NO_ORDER | CLOSED | NOT_INTERESTED
+  remarks      String?
+
+  stockTake StockTake?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([obUserId, plannedDate])
+  @@index([retailerId])
+}
+
+// Shelf/godown stock as physically counted by the order booker on a visit —
+// gives a shop/wholesaler-level stock report independent of the sales ledger.
+model StockTake {
+  id         Int      @id @default(autoincrement())
+  retailerId Int
+  retailer   Retailer @relation(fields: [retailerId], references: [id])
+  obUserId   Int
+  obUser     User     @relation(fields: [obUserId], references: [id])
+  visitId    Int?     @unique
+  visit      Visit?   @relation(fields: [visitId], references: [id])
+  takenAt    DateTime @default(now())
+
+  items StockTakeItem[]
+
+  @@index([retailerId, takenAt])
+}
+
+model StockTakeItem {
+  id          Int       @id @default(autoincrement())
+  stockTakeId Int
+  stockTake   StockTake @relation(fields: [stockTakeId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id])
+  qty         Int
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Products & distribution
+// ─────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id                Int    @id @default(autoincrement())
+  name              String
+  skuCode           String @unique
+  category          String
+  brand             String
+  packSize          String
+  mrp               Float
+  distributorPrice  Float
+  active            Boolean @default(true)
+
+  stockTransferItems StockTransferItem[]
+  stockLedgerEntries StockLedgerEntry[]
+  stockBalances      DistributorStockBalance[]
+  orderItems         OrderItem[]
+  stockTakeItems     StockTakeItem[]
+  stockOrderItems    StockOrderItem[]
+  returnItems        ReturnItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Distributor {
+  id             Int    @id @default(autoincrement())
+  name           String
+  code           String @unique
+  address        String?
+  contactPerson  String?
+  phone          String?
+  creditLimit    Float  @default(0)
+  status         String @default("ACTIVE")
+
+  territoryNodeId Int
+  territoryNode   TerritoryNode @relation(fields: [territoryNodeId], references: [id])
+
+  userId Int? @unique
+  user   User? @relation("DistributorUser", fields: [userId], references: [id])
+
+  stockTransfers StockTransfer[]
+  stockLedgerEntries StockLedgerEntry[]
+  stockBalances  DistributorStockBalance[]
+  orders         Order[]
+  stockOrders    StockOrder[]
+  returns        Return[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockTransfer {
+  id            Int      @id @default(autoincrement())
+  referenceNo   String   @unique
+  distributorId Int
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  transferDate  DateTime @default(now())
+  status        String   @default("DELIVERED") // DISPATCHED | DELIVERED
+
+  items StockTransferItem[]
+
+  createdAt DateTime @default(now())
+}
+
+model StockTransferItem {
+  id              Int    @id @default(autoincrement())
+  stockTransferId Int
+  stockTransfer   StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product @relation(fields: [productId], references: [id])
+  qty             Int
+  rate            Float
+}
+
+model StockLedgerEntry {
+  id            Int         @id @default(autoincrement())
+  distributorId Int
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  productId     Int
+  product       Product     @relation(fields: [productId], references: [id])
+  type          String // INBOUND_PRIMARY | OUTBOUND_SECONDARY | ADJUSTMENT
+  qty           Int // signed: + for inbound, - for outbound
+  refType       String // "StockTransfer" | "Order" | "Adjustment"
+  refId         Int
+  balanceAfter  Int
+  createdAt     DateTime @default(now())
+
+  @@index([distributorId, productId])
+}
+
+model DistributorStockBalance {
+  id            Int @id @default(autoincrement())
+  distributorId Int
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  productId     Int
+  product       Product @relation(fields: [productId], references: [id])
+  qty           Int @default(0)
+
+  @@unique([distributorId, productId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Secondary sales (orders)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderNumber   String      @unique
+  retailerId    Int
+  retailer      Retailer    @relation(fields: [retailerId], references: [id])
+  obUserId      Int
+  obUser        User        @relation("OrderBookedBy", fields: [obUserId], references: [id])
+  distributorId Int
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  orderDate     DateTime    @default(now())
+  status        String      @default("DELIVERED") // PENDING | DELIVERED | CANCELLED
+  totalAmount   Float
+  madeProductive Boolean    @default(false) // true if this order is what flipped the retailer into Productive (first order, or a reactivation)
+
+  items    OrderItem[]
+  receipts Receipt[]
+  returns  Return[]
+
+  createdAt DateTime @default(now())
+
+  @@index([distributorId])
+  @@index([obUserId])
+  @@index([orderDate])
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  qty       Int
+  unitPrice Float
+  amount    Float
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Targets & incentives
+// ─────────────────────────────────────────────────────────────────────────
+
+model Target {
+  id          Int    @id @default(autoincrement())
+  userId      Int
+  user        User   @relation(fields: [userId], references: [id])
+  periodMonth Int
+  periodYear  Int
+  targetType  String @default("VALUE") // VALUE | VOLUME
+  targetValue Float
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, periodMonth, periodYear])
+}
+
+model IncentiveScheme {
+  id        Int    @id @default(autoincrement())
+  name      String
+  roleId    Int
+  role      Role   @relation(fields: [roleId], references: [id])
+  basis     String // SLAB_ON_ACHIEVEMENT | PERCENT_OF_SALES
+  rulesJson String // JSON-encoded slab/percent rules
+  active    Boolean @default(true)
+
+  earnings IncentiveEarning[]
+
+  createdAt DateTime @default(now())
+}
+
+model IncentiveEarning {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  schemeId        Int
+  scheme          IncentiveScheme @relation(fields: [schemeId], references: [id])
+  periodMonth     Int
+  periodYear      Int
+  achievedValue   Float
+  targetValue     Float
+  achievementPct  Float
+  incentiveAmount Float
+  metricValue     Float? // raw non-monetary metric behind the amount, e.g. cases sold or new-productive-shop count
+  computedAt      DateTime @default(now())
+
+  // A user can carry multiple simultaneous schemes (e.g. base % of sales +
+  // a per-case volume kicker + a new-outlet development bonus), so the
+  // period is unique per scheme, not per user alone.
+  @@unique([userId, schemeId, periodMonth, periodYear])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id])
+  type              String // SHOP_NON_PRODUCTIVE | TARGET_ALERT | STOCK_LOW | PJP_MISSED | GENERAL
+  title             String
+  message           String
+  relatedEntityType String?
+  relatedEntityId   Int?
+  isRead            Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Documents: stock orders (indents), receipts (collections), returns
+// ─────────────────────────────────────────────────────────────────────────
+
+// A distributor's replenishment request to the company. Once approved, the
+// company fulfils it with a StockTransfer (primary) — this is the document
+// that kicks that off, distinct from the transfer/delivery record itself.
+model StockOrder {
+  id                Int    @id @default(autoincrement())
+  orderNumber       String @unique
+  distributorId     Int
+  distributor       Distributor @relation(fields: [distributorId], references: [id])
+  requestedByUserId Int
+  requestedByUser   User   @relation(fields: [requestedByUserId], references: [id])
+  status            String @default("PENDING") // PENDING | APPROVED | FULFILLED | REJECTED
+  orderDate         DateTime @default(now())
+  notes             String?
+
+  items StockOrderItem[]
+
+  createdAt DateTime @default(now())
+}
+
+model StockOrderItem {
+  id           Int        @id @default(autoincrement())
+  stockOrderId Int
+  stockOrder   StockOrder @relation(fields: [stockOrderId], references: [id], onDelete: Cascade)
+  productId    Int
+  product      Product    @relation(fields: [productId], references: [id])
+  qty          Int
+}
+
+// Payment collected against a secondary sale — orders and collections are
+// tracked separately since shops are commonly extended short-term credit.
+model Receipt {
+  id            Int      @id @default(autoincrement())
+  receiptNumber String   @unique
+  retailerId    Int
+  retailer      Retailer @relation(fields: [retailerId], references: [id])
+  orderId       Int?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  obUserId      Int
+  obUser        User     @relation(fields: [obUserId], references: [id])
+  amount        Float
+  method        String   @default("CASH") // CASH | BANK | CREDIT_NOTE
+  receivedAt    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([retailerId])
+  @@index([orderId])
+}
+
+// Goods returned from a retailer back to the distributor (damage, near
+// expiry, wrong SKU, overstock) — reverses the secondary-sale stock impact.
+model Return {
+  id            Int         @id @default(autoincrement())
+  returnNumber  String      @unique
+  retailerId    Int
+  retailer      Retailer    @relation(fields: [retailerId], references: [id])
+  distributorId Int
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  obUserId      Int
+  obUser        User        @relation(fields: [obUserId], references: [id])
+  orderId       Int?
+  order         Order?      @relation(fields: [orderId], references: [id])
+  reason        String?
+  returnDate    DateTime    @default(now())
+  totalAmount   Float
+
+  items ReturnItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([retailerId])
+  @@index([distributorId])
+}
+
+model ReturnItem {
+  id        Int     @id @default(autoincrement())
+  returnId  Int
+  return    Return  @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  qty       Int
+  unitPrice Float
+  amount    Float
+}
