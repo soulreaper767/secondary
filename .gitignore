@@ -5,6 +5,7 @@ build/
 .env.local
 *.log
 npm-debug.log*
+*.tsbuildinfo
 
 # Prisma / SQLite
 server/prisma/*.db

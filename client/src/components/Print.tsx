@@ -35,7 +35,7 @@ export function PrintHeader({ documentTitle, party, meta }: { documentTitle: str
     <div className="print-only mb-6 border-b-2 border-black pb-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xl font-bold tracking-tight">SecondarySales Beverages Ltd.</div>
+          <div className="text-xl font-bold tracking-tight">Zalmi Beverages Ltd.</div>
           <div className="text-xs text-gray-600">Sales &amp; Distribution Management System</div>
         </div>
         <div className="text-right text-xs text-gray-600">

@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { ReturnDoc, Retailer, Distributor, Product } from '../../types';
+import { variantName } from '../../lib/product';
 
 interface LineItem {
   productId: number;
@@ -132,7 +133,7 @@ export default function Returns() {
                     <option value={0}>Select product…</option>
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.packSize})
+                        {variantName(p)}
                       </option>
                     ))}
                   </select>

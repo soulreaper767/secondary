@@ -81,9 +81,11 @@ export function NotificationBell() {
                 onClick={() => markRead(n.id)}
                 className={`block w-full border-b border-[var(--border)] px-4 py-3 text-left last:border-0 hover:bg-[var(--page)] ${!n.isRead ? 'bg-[var(--series-1)]/5' : ''}`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   {!n.isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--series-1)]" />}
-                  <span className="text-sm font-medium text-[var(--text-primary)]">{n.title}</span>
+                  <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]" title={n.title}>
+                    {n.title}
+                  </span>
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{n.message}</p>
                 <span className="mt-1 block text-[10px] text-[var(--muted)]">{timeAgo(n.createdAt)}</span>

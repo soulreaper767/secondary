@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { StatusBadge } from '../../components/StatusBadge';
 import { DataTable } from '../../components/DataTable';
 import { Retailer, Visit, Order, Product } from '../../types';
+import { variantName, variantShortName } from '../../lib/product';
 import { ClipboardCheck, MapPin } from 'lucide-react';
 
 interface StockTake {
@@ -155,7 +156,7 @@ export default function RetailerDetail() {
             {products.map((p) => (
               <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-2.5 py-1.5">
                 <span className="text-xs text-[var(--text-secondary)]">
-                  {p.name} ({p.packSize})
+                  {variantName(p)}
                 </span>
                 <input
                   type="number"
@@ -180,7 +181,7 @@ export default function RetailerDetail() {
           <div className="flex flex-wrap gap-2 px-1">
             {latestStockTake.items.map((i) => (
               <span key={i.productId} className="rounded-full bg-[var(--page)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-                {i.product.name}: <span className="font-semibold text-[var(--text-primary)]">{i.qty}</span>
+                {variantShortName(i.product)}: <span className="font-semibold text-[var(--text-primary)]">{i.qty}</span>
               </span>
             ))}
           </div>

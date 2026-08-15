@@ -30,7 +30,7 @@ router.get(
           retailer: { select: { id: true, name: true, territoryNodeId: true } },
           obUser: { select: { id: true, name: true } },
           distributor: { select: { id: true, name: true } },
-          items: { include: { product: true } },
+          items: { include: { product: { include: { family: true } } } },
         },
         orderBy: { orderDate: 'desc' },
         take,
@@ -47,7 +47,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: Number(req.params.id) },
-      include: { retailer: true, obUser: true, distributor: true, items: { include: { product: true } } },
+      include: { retailer: true, obUser: true, distributor: true, items: { include: { product: { include: { family: true } } } } },
     });
     if (!order) throw new ApiError(404, 'Order not found');
     res.json(order);
@@ -128,7 +128,7 @@ router.post(
 
     const full = await prisma.order.findUnique({
       where: { id: order.id },
-      include: { retailer: true, obUser: true, distributor: true, items: { include: { product: true } } },
+      include: { retailer: true, obUser: true, distributor: true, items: { include: { product: { include: { family: true } } } } },
     });
     res.status(201).json(full);
   })

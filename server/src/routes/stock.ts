@@ -18,7 +18,7 @@ router.get(
     else if (req.scopedNodeIds) where.distributor = { territoryNodeId: { in: req.scopedNodeIds } };
     const balances = await prisma.distributorStockBalance.findMany({
       where,
-      include: { distributor: { select: { id: true, name: true } }, product: true },
+      include: { distributor: { select: { id: true, name: true } }, product: { include: { family: true } } },
       orderBy: [{ distributorId: 'asc' }, { productId: 'asc' }],
     });
     res.json(balances);
@@ -37,7 +37,7 @@ router.get(
     const [items, total] = await Promise.all([
       prisma.stockLedgerEntry.findMany({
         where,
-        include: { distributor: { select: { id: true, name: true } }, product: { select: { id: true, name: true, skuCode: true } } },
+        include: { distributor: { select: { id: true, name: true } }, product: { include: { family: true } } },
         orderBy: { createdAt: 'desc' },
         take,
         skip,
@@ -56,7 +56,7 @@ router.get(
     if (distributorId) where.distributorId = Number(distributorId);
     const transfers = await prisma.stockTransfer.findMany({
       where,
-      include: { distributor: { select: { id: true, name: true } }, items: { include: { product: true } } },
+      include: { distributor: { select: { id: true, name: true } }, items: { include: { product: { include: { family: true } } } } },
       orderBy: { transferDate: 'desc' },
     });
     res.json(transfers);

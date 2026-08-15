@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { Distributor, Product, Retailer } from '../../types';
+import { variantName } from '../../lib/product';
 
 interface LineItem {
   productId: number;
@@ -120,7 +121,7 @@ export default function NewOrder() {
                   <option value={0}>Select product…</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.packSize})
+                      {variantName(p)}
                     </option>
                   ))}
                 </select>

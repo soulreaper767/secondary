@@ -20,7 +20,7 @@ router.get(
         retailer: { select: { id: true, name: true } },
         distributor: { select: { id: true, name: true } },
         obUser: { select: { id: true, name: true } },
-        items: { include: { product: true } },
+        items: { include: { product: { include: { family: true } } } },
       },
       orderBy: { returnDate: 'desc' },
     });
@@ -61,7 +61,7 @@ router.post(
           totalAmount,
           items: { create: itemsData },
         },
-        include: { items: { include: { product: true } } },
+        include: { items: { include: { product: { include: { family: true } } } } },
       });
 
       for (const item of itemsData) {

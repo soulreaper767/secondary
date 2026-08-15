@@ -44,27 +44,31 @@ function TreeNode({ node, depth }: { node: TerritoryNode; depth: number }) {
     <div>
       <div
         onClick={toggle}
-        className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 hover:bg-[var(--page)]"
+        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--page)]"
         style={{ paddingLeft: 8 + depth * 18 }}
       >
-        <div className="flex items-center gap-2">
-          <span className="w-3 text-[var(--muted)]">{hasChildren ? (open ? '▾' : '▸') : ''}</span>
-          <span className="text-sm font-medium">{node.name}</span>
-          <span className="rounded-full bg-[var(--page)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)]">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="w-3 shrink-0 text-[var(--muted)]">{hasChildren ? (open ? '▾' : '▸') : ''}</span>
+          <span className="truncate text-sm font-medium" title={node.name}>
+            {node.name}
+          </span>
+          <span className="shrink-0 rounded-full bg-[var(--page)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)]">
             {LEVEL_LABEL[node.level]}
           </span>
         </div>
-        {loading && <span className="text-[10px] text-[var(--muted)]">loading…</span>}
+        {loading && <span className="shrink-0 text-[10px] text-[var(--muted)]">loading…</span>}
         {summary && (
-          <div className="tabular flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-            <span title="Total universe">🏪 {summary.universe.total}</span>
+          <div className="tabular flex shrink-0 items-center gap-3 text-xs text-[var(--text-secondary)]">
+            <span title="Total universe" className="hidden sm:inline">
+              🏪 {summary.universe.total}
+            </span>
             <span title="Productive" className="text-[var(--status-good)]">
               ● {summary.universe.productive}
             </span>
             <span title="Non-productive" className="text-[var(--status-critical)]">
               ● {summary.universe.nonProductive}
             </span>
-            <span className="font-medium text-[var(--text-primary)]">{fmtCurrency(summary.mtdSalesValue)}</span>
+            <span className="font-semibold text-[var(--text-primary)]">{fmtCurrency(summary.mtdSalesValue)}</span>
           </div>
         )}
       </div>

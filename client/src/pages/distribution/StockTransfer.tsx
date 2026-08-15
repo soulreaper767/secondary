@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { Distributor, Product } from '../../types';
+import { variantName } from '../../lib/product';
 
 interface LineItem {
   productId: number;
@@ -99,7 +100,7 @@ export default function StockTransfer() {
                   <option value={0}>Select product…</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.packSize})
+                      {variantName(p)}
                     </option>
                   ))}
                 </select>
@@ -126,7 +127,7 @@ export default function StockTransfer() {
                 <span className="text-xs text-[var(--muted)]">{new Date(t.transferDate).toLocaleDateString()}</span>
               </div>
               <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                {t.items.map((it: any) => `${it.product.name} x${it.qty}`).join(', ')}
+                {t.items.map((it: any) => `${variantName(it.product)} x${it.qty}`).join(', ')}
               </div>
             </div>
           ))}

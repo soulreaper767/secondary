@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { DataTable } from '../../components/DataTable';
 import { PrintButton, PrintHeader } from '../../components/Print';
-import { Distributor } from '../../types';
+import { Distributor, Product } from '../../types';
+import { variantName } from '../../lib/product';
 
 interface BalanceRow {
   id: number;
   qty: number;
   distributor: { id: number; name: string };
-  product: { id: number; name: string; skuCode: string; packSize: string };
+  product: Product;
 }
 
 export default function StockBalance() {
@@ -55,7 +56,7 @@ export default function StockBalance() {
           rows={rows}
           columns={[
             { header: 'Distributor', cell: (r) => r.distributor.name },
-            { header: 'SKU', cell: (r) => `${r.product.name} (${r.product.packSize})` },
+            { header: 'SKU', cell: (r) => variantName(r.product) },
             { header: 'SKU Code', cell: (r) => r.product.skuCode },
             {
               header: 'Stock Qty',

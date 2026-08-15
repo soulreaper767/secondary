@@ -56,13 +56,23 @@ export interface Retailer {
   createdAt: string;
 }
 
-export interface Product {
+export interface ProductFamily {
   id: number;
   name: string;
-  skuCode: string;
-  category: string;
   brand: string;
-  packSize: string;
+  category: string;
+  description?: string | null;
+  active: boolean;
+  variants?: Product[];
+}
+
+export interface Product {
+  id: number;
+  familyId: number;
+  family?: ProductFamily;
+  packaging: 'PET' | 'CAN';
+  size: string;
+  skuCode: string;
   mrp: number;
   distributorPrice: number;
   active: boolean;

@@ -18,7 +18,7 @@ router.get(
     if (retailerId) where.retailerId = Number(retailerId);
     const stockTakes = await prisma.stockTake.findMany({
       where,
-      include: { retailer: { select: { id: true, name: true } }, obUser: { select: { id: true, name: true } }, items: { include: { product: true } } },
+      include: { retailer: { select: { id: true, name: true } }, obUser: { select: { id: true, name: true } }, items: { include: { product: { include: { family: true } } } } },
       orderBy: { takenAt: 'desc' },
       take: 200,
     });
@@ -38,7 +38,7 @@ router.post(
     const body = stockTakeSchema.parse(req.body);
     const stockTake = await prisma.stockTake.create({
       data: { retailerId: body.retailerId, obUserId: req.user!.id, visitId: body.visitId, items: { create: body.items } },
-      include: { items: { include: { product: true } } },
+      include: { items: { include: { product: { include: { family: true } } } } },
     });
     res.status(201).json(stockTake);
   })

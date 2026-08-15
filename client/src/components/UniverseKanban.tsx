@@ -40,10 +40,14 @@ export function UniverseKanban({ data }: { data: Record<UniverseStatus, Retailer
                   className="block rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-2.5 text-sm shadow-sm transition-shadow hover:shadow-md"
                   style={{ borderLeft: `3px solid ${color}` }}
                 >
-                  <div className="font-semibold text-[var(--text-primary)]">{r.name}</div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                    <span className="rounded-full bg-[var(--page)] px-1.5 py-0.5 font-medium">{r.category.replace('_', ' ')}</span>
-                    <span>{r.territoryNode?.name}</span>
+                  <div className="truncate font-semibold text-[var(--text-primary)]" title={r.name}>
+                    {r.name}
+                  </div>
+                  <div className="mt-1 flex min-w-0 items-center justify-between gap-1.5 text-[11px] text-[var(--text-secondary)]">
+                    <span className="shrink-0 rounded-full bg-[var(--page)] px-1.5 py-0.5 font-medium">{r.category.replace('_', ' ')}</span>
+                    <span className="min-w-0 truncate text-right" title={r.territoryNode?.name}>
+                      {r.territoryNode?.name}
+                    </span>
                   </div>
                 </Link>
               ))}

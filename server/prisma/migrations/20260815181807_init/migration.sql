@@ -127,18 +127,30 @@ CREATE TABLE "StockTakeItem" (
 );
 
 -- CreateTable
-CREATE TABLE "Product" (
+CREATE TABLE "ProductFamily" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
-    "skuCode" TEXT NOT NULL,
-    "category" TEXT NOT NULL,
     "brand" TEXT NOT NULL,
-    "packSize" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Product" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "familyId" INTEGER NOT NULL,
+    "packaging" TEXT NOT NULL,
+    "size" TEXT NOT NULL,
+    "skuCode" TEXT NOT NULL,
     "mrp" REAL NOT NULL,
     "distributorPrice" REAL NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Product_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "ProductFamily" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -403,7 +415,13 @@ CREATE UNIQUE INDEX "StockTake_visitId_key" ON "StockTake"("visitId");
 CREATE INDEX "StockTake_retailerId_takenAt_idx" ON "StockTake"("retailerId", "takenAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ProductFamily_name_brand_key" ON "ProductFamily"("name", "brand");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Product_skuCode_key" ON "Product"("skuCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Product_familyId_packaging_size_key" ON "Product"("familyId", "packaging", "size");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Distributor_code_key" ON "Distributor"("code");

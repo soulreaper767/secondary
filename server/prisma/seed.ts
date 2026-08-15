@@ -210,23 +210,39 @@ async function main() {
   }
   console.log(`  ${1 + 1 + 1 + regions.length + subRegions.length + areas.length + territories.length * 2} hierarchy users created`);
 
-  console.log('Creating products...');
-  const productDefs = [
-    { name: 'FizzUp Cola', skuCode: 'FZ-COL-250', category: 'Carbonated', brand: 'FizzUp', packSize: '250ml', mrp: 40, distributorPrice: 32 },
-    { name: 'FizzUp Cola', skuCode: 'FZ-COL-500', category: 'Carbonated', brand: 'FizzUp', packSize: '500ml', mrp: 70, distributorPrice: 56 },
-    { name: 'FizzUp Cola', skuCode: 'FZ-COL-1500', category: 'Carbonated', brand: 'FizzUp', packSize: '1.5L', mrp: 150, distributorPrice: 120 },
-    { name: 'FizzUp Cola Zero', skuCode: 'FZ-ZERO-500', category: 'Carbonated', brand: 'FizzUp', packSize: '500ml', mrp: 75, distributorPrice: 60 },
-    { name: 'CitrusZing Lemon', skuCode: 'CZ-LEM-250', category: 'Carbonated', brand: 'CitrusZing', packSize: '250ml', mrp: 40, distributorPrice: 32 },
-    { name: 'CitrusZing Lemon', skuCode: 'CZ-LEM-500', category: 'Carbonated', brand: 'CitrusZing', packSize: '500ml', mrp: 70, distributorPrice: 56 },
-    { name: 'AquaPure Water', skuCode: 'AQ-WAT-500', category: 'Water', brand: 'AquaPure', packSize: '500ml', mrp: 30, distributorPrice: 24 },
-    { name: 'AquaPure Water', skuCode: 'AQ-WAT-1000', category: 'Water', brand: 'AquaPure', packSize: '1L', mrp: 50, distributorPrice: 40 },
-    { name: 'AquaPure Water', skuCode: 'AQ-WAT-1500', category: 'Water', brand: 'AquaPure', packSize: '1.5L', mrp: 65, distributorPrice: 52 },
-    { name: 'TropiFresh Mango', skuCode: 'TF-MAN-200', category: 'Juice', brand: 'TropiFresh', packSize: '200ml', mrp: 45, distributorPrice: 36 },
-    { name: 'TropiFresh Orange', skuCode: 'TF-ORA-200', category: 'Juice', brand: 'TropiFresh', packSize: '200ml', mrp: 45, distributorPrice: 36 },
-    { name: 'TropiFresh Apple', skuCode: 'TF-APP-1000', category: 'Juice', brand: 'TropiFresh', packSize: '1L', mrp: 160, distributorPrice: 128 },
+  console.log('Creating product families & SKU variants...');
+  // Item master: three flavors under the Zalmi brand, each sold in three
+  // packaging/size variants. New variants can be added later under the same
+  // family without touching these records — see Admin > Products.
+  const familyDefs = [
+    { name: 'Cola', brand: 'Zalmi', category: 'Carbonated Soft Drink', description: 'Classic cola flavor', skuPrefix: 'COLA' },
+    { name: 'Clear', brand: 'Zalmi', category: 'Carbonated Soft Drink', description: 'Crisp, clear lemon-lime soda', skuPrefix: 'CLEAR' },
+    { name: 'Zing', brand: 'Zalmi', category: 'Carbonated Soft Drink', description: 'Zesty citrus-forward soda', skuPrefix: 'ZING' },
+  ];
+  const variantDefs = [
+    { packaging: 'PET', size: '300ml', mrp: 40, distributorPrice: 32, skuSuffix: 'PET-300' },
+    { packaging: 'PET', size: '1500ml', mrp: 150, distributorPrice: 120, skuSuffix: 'PET-1500' },
+    { packaging: 'CAN', size: '250ml', mrp: 60, distributorPrice: 48, skuSuffix: 'CAN-250' },
   ];
   const products = [];
-  for (const p of productDefs) products.push(await prisma.product.create({ data: p }));
+  for (const f of familyDefs) {
+    const { skuPrefix, ...familyData } = f;
+    const family = await prisma.productFamily.create({ data: familyData });
+    for (const v of variantDefs) {
+      products.push(
+        await prisma.product.create({
+          data: {
+            familyId: family.id,
+            packaging: v.packaging,
+            size: v.size,
+            skuCode: `ZAL-${skuPrefix}-${v.skuSuffix}`,
+            mrp: v.mrp,
+            distributorPrice: v.distributorPrice,
+          },
+        })
+      );
+    }
+  }
 
   console.log('Creating distributors + primary stock...');
   const distributorByAreaId = new Map<number, any>();

@@ -216,16 +216,36 @@ model StockTakeItem {
 // Products & distribution
 // ─────────────────────────────────────────────────────────────────────────
 
+// The item master "document" — a flavor/brand line (e.g. Zalmi Cola, Zalmi Zing).
+// New pack sizes or packaging types are added as ProductVariant rows under
+// the same family, without ever touching this record.
+model ProductFamily {
+  id          Int    @id @default(autoincrement())
+  name        String // e.g. "Cola", "Zing", "Clear"
+  brand       String // e.g. "Zalmi"
+  category    String // e.g. "Carbonated Soft Drink"
+  description String?
+  active      Boolean @default(true)
+
+  variants Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, brand])
+}
+
+// A single sellable SKU: one packaging/size combination of a ProductFamily.
 model Product {
-  id                Int    @id @default(autoincrement())
-  name              String
-  skuCode           String @unique
-  category          String
-  brand             String
-  packSize          String
-  mrp               Float
-  distributorPrice  Float
-  active            Boolean @default(true)
+  id        Int           @id @default(autoincrement())
+  familyId  Int
+  family    ProductFamily @relation(fields: [familyId], references: [id])
+  packaging String // PET | CAN
+  size      String // "300ml", "1500ml", "250ml"
+  skuCode   String        @unique
+  mrp       Float
+  distributorPrice Float
+  active    Boolean       @default(true)
 
   stockTransferItems StockTransferItem[]
   stockLedgerEntries StockLedgerEntry[]
@@ -234,6 +254,8 @@ model Product {
   stockTakeItems     StockTakeItem[]
   stockOrderItems    StockOrderItem[]
   returnItems        ReturnItem[]
+
+  @@unique([familyId, packaging, size])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { scopeToTerritory } from '../middleware/rbac';
 import { asyncHandler } from '../middleware/errorHandler';
 import { getUniverseSummary } from '../lib/territory';
+import { variantDisplayName } from '../lib/product';
 
 const router = Router();
 router.use(requireAuth);
@@ -32,7 +33,7 @@ router.get(
         distributor: { select: { id: true, name: true } },
         obUser: { select: { id: true, name: true } },
         retailer: { select: { id: true, name: true, territoryNodeId: true, territoryNode: { select: { name: true } } } },
-        items: { include: { product: { select: { id: true, name: true, skuCode: true, brand: true } } } },
+        items: { include: { product: { include: { family: true } } } },
       },
     });
 
@@ -44,7 +45,7 @@ router.get(
       else if (groupBy === 'territory')
         entries = [{ key: String(order.retailer.territoryNodeId), label: order.retailer.territoryNode.name }];
       else if (groupBy === 'sku')
-        entries = order.items.map((i) => ({ key: String(i.productId), label: `${i.product.name} (${i.product.skuCode})` }));
+        entries = order.items.map((i) => ({ key: String(i.productId), label: variantDisplayName(i.product) }));
 
       for (const entry of entries) {
         if (!buckets.has(entry.key)) buckets.set(entry.key, { key: entry.key, label: entry.label, orders: 0, value: 0, qty: 0 });
@@ -109,7 +110,7 @@ router.get(
       where,
       include: {
         retailer: { select: { id: true, name: true, category: true, territoryNode: { select: { name: true } } } },
-        items: { include: { product: { select: { id: true, name: true, skuCode: true, packSize: true } } } },
+        items: { include: { product: { include: { family: true } } } },
       },
       orderBy: { takenAt: 'desc' },
     });
@@ -126,7 +127,7 @@ router.get(
       category: t.retailer.category,
       territory: t.retailer.territoryNode?.name,
       takenAt: t.takenAt,
-      items: t.items.map((i) => ({ productId: i.productId, name: i.product.name, skuCode: i.product.skuCode, packSize: i.product.packSize, qty: i.qty })),
+      items: t.items.map((i) => ({ productId: i.productId, name: `${i.product.family.name} ${i.product.packaging}`, skuCode: i.product.skuCode, packSize: i.product.size, qty: i.qty })),
       totalUnits: t.items.reduce((s, i) => s + i.qty, 0),
     }));
 

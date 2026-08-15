@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PrintButton, PrintHeader } from '../../components/Print';
 import { StockOrder, Distributor, Product } from '../../types';
+import { variantName } from '../../lib/product';
 
 const STATUS_LABEL: Record<string, string> = { PENDING: 'Pending', APPROVED: 'Approved', FULFILLED: 'Fulfilled', REJECTED: 'Rejected' };
 
@@ -98,7 +99,7 @@ export default function StockOrders() {
                   <option value={0}>Select product…</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.packSize})
+                      {variantName(p)}
                     </option>
                   ))}
                 </select>
@@ -136,7 +137,7 @@ export default function StockOrders() {
                 <div className="text-xs text-[var(--text-secondary)]">
                   {so.distributor?.name} · requested by {so.requestedByUser?.name} · {new Date(so.orderDate).toLocaleDateString()}
                 </div>
-                <div className="mt-1 text-xs text-[var(--text-secondary)]">{so.items.map((i) => `${i.product?.name} x${i.qty}`).join(', ')}</div>
+                <div className="mt-1 text-xs text-[var(--text-secondary)]">{so.items.map((i) => `${i.product ? variantName(i.product) : ''} x${i.qty}`).join(', ')}</div>
               </div>
               {canApprove && so.status === 'PENDING' && (
                 <div className="flex gap-1.5">

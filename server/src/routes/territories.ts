@@ -2,17 +2,20 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireRole, scopeToTerritory } from '../middleware/rbac';
 import { asyncHandler, ApiError } from '../middleware/errorHandler';
 import { buildPath, getSubtreeNodeIds, getUniverseSummary } from '../lib/territory';
 
 const router = Router();
 router.use(requireAuth);
+router.use(scopeToTerritory);
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const where: any = req.scopedNodeIds ? { id: { in: req.scopedNodeIds } } : {};
     const nodes = await prisma.territoryNode.findMany({
+      where,
       include: { managerUser: { select: { id: true, name: true } } },
       orderBy: { path: 'asc' },
     });
@@ -20,10 +23,17 @@ router.get(
   })
 );
 
+// Every role sees the tree rooted at their own scope: national roles get the
+// full National → Territory tree, a Unit Manager's "top" is their own Unit
+// with Areas/Territories nested beneath, and so on down to a TSO/OB whose
+// tree is just their own Territory. Each node's totals (fetched via
+// /:id/summary) roll up everything in its own subtree.
 router.get(
   '/tree',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const where: any = req.scopedNodeIds ? { id: { in: req.scopedNodeIds } } : {};
     const nodes = await prisma.territoryNode.findMany({
+      where,
       include: { managerUser: { select: { id: true, name: true } } },
       orderBy: { path: 'asc' },
     });
@@ -40,7 +50,11 @@ router.get(
 router.get(
   '/:id/summary',
   asyncHandler(async (req, res) => {
-    const nodeIds = await getSubtreeNodeIds(Number(req.params.id));
+    const id = Number(req.params.id);
+    if (req.scopedNodeIds && !req.scopedNodeIds.includes(id)) {
+      throw new ApiError(403, 'This territory is outside your scope');
+    }
+    const nodeIds = await getSubtreeNodeIds(id);
     if (nodeIds.length === 0) throw new ApiError(404, 'Territory not found');
     const universe = await getUniverseSummary(nodeIds);
 

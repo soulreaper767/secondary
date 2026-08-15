@@ -22,7 +22,7 @@ router.get(
     if (req.query.status) where.status = String(req.query.status);
     const stockOrders = await prisma.stockOrder.findMany({
       where,
-      include: { distributor: { select: { id: true, name: true } }, requestedByUser: { select: { id: true, name: true } }, items: { include: { product: true } } },
+      include: { distributor: { select: { id: true, name: true } }, requestedByUser: { select: { id: true, name: true } }, items: { include: { product: { include: { family: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
     res.json(stockOrders);
@@ -48,7 +48,7 @@ router.post(
         notes: body.notes,
         items: { create: body.items },
       },
-      include: { distributor: true, items: { include: { product: true } } },
+      include: { distributor: true, items: { include: { product: { include: { family: true } } } } },
     });
     res.status(201).json(stockOrder);
   })
@@ -84,7 +84,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const body = fulfillSchema.parse(req.body);
     const id = Number(req.params.id);
-    const stockOrder = await prisma.stockOrder.findUnique({ where: { id }, include: { items: { include: { product: true } } } });
+    const stockOrder = await prisma.stockOrder.findUnique({ where: { id }, include: { items: { include: { product: { include: { family: true } } } } } });
     if (!stockOrder) throw new ApiError(404, 'Stock order not found');
     if (stockOrder.status === 'FULFILLED') throw new ApiError(400, 'Already fulfilled');
 
@@ -93,7 +93,7 @@ router.post(
       const items = stockOrder.items.map((i) => ({ productId: i.productId, qty: i.qty, rate: body.rates?.[String(i.productId)] ?? i.product.distributorPrice }));
       const created = await tx.stockTransfer.create({
         data: { referenceNo, distributorId: stockOrder.distributorId, items: { create: items } },
-        include: { items: { include: { product: true } } },
+        include: { items: { include: { product: { include: { family: true } } } } },
       });
       for (const item of items) {
         const balance = await tx.distributorStockBalance.upsert({

@@ -63,7 +63,7 @@ router.get(
         territoryNode: true,
         addedByUser: { select: { id: true, name: true } },
         visits: { orderBy: { plannedDate: 'desc' }, take: 20 },
-        orders: { orderBy: { orderDate: 'desc' }, take: 20, include: { items: { include: { product: true } } } },
+        orders: { orderBy: { orderDate: 'desc' }, take: 20, include: { items: { include: { product: { include: { family: true } } } } } },
       },
     });
     if (!retailer) throw new ApiError(404, 'Retailer not found');
